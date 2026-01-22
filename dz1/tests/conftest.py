@@ -1,8 +1,7 @@
 import pytest
-from model_ad import Ad
 from main import app
 from fastapi.testclient import TestClient
-from typing import Callable, Mapping, Any
+from typing import Callable
 
 @pytest.fixture
 def client() -> TestClient:
