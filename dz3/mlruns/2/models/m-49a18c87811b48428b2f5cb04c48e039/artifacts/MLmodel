@@ -1,0 +1,22 @@
+artifact_path: file:///C:/Users/arseniy/projects/backend/dz2/mlruns/2/models/m-49a18c87811b48428b2f5cb04c48e039/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.11.4
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+mlflow_version: 3.8.1
+model_id: m-49a18c87811b48428b2f5cb04c48e039
+model_size_bytes: 747
+model_uuid: m-49a18c87811b48428b2f5cb04c48e039
+prompts: null
+run_id: 6e944aa630fb4ce3b2a0e6f1a290ba6e
+utc_time_created: '2026-01-28 12:57:09.843249'

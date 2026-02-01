@@ -1,0 +1,7 @@
+pytest
+fastapi
+pydantic
+httpx
+numpy
+scikit-learn
+mlflow
