@@ -3,23 +3,20 @@ from fastapi.testclient import TestClient
 from typing import Callable, Any
 from fastapi import status
 
-# Тест успешного предсказания (is_violation = True)
-# Тест успешного предсказания (is_violation = False)
-# Тест валидации входных данных (неверные типы)
-# Тест обработки ошибки при недоступной модели
-
 def test_is_violation_true(client: TestClient,
                            get_ad: Callable[..., dict[str, str|bool|int]],
+                           set_only_true_model: None,
                            ):
-    ad = get_ad(is_verified_seller=False, images_qty=0)
+    ad = get_ad()
     response = client.post('/predict_one', json=ad)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()['is_violation'] is True
 
 def test_is_violation_false(client: TestClient,
                             get_ad: Callable[..., dict[str, str|bool|int]],
+                            set_only_false_model: None,
                             ):
-    ad = get_ad(is_verified_seller=True, images_qty=1)
+    ad = get_ad()
     response = client.post('/predict_one', json=ad)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()['is_violation'] is False
@@ -46,3 +43,43 @@ def test_model_not_found(get_ad: Callable[..., dict[str, str|bool|int]],
     ad = get_ad()
     response = client_without_lifespan.post(url='/predict_one', json=ad)
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+@pytest.mark.parametrize('ad_id', [True, 'One', 31.1])
+def test_wrong_types_simple_predict(ad_id: Any,
+                                    client: TestClient,
+                                    set_fake_get_ad: None,                                   
+                                    ):
+    response = client.post(url='/simple_predict', params={'ad_id': ad_id})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+@pytest.mark.parametrize('ad_id', [1, 2, 3])
+def test_missing_id_simple_predict(ad_id: int,
+                                    client: TestClient,
+                                    set_None_get_ad: None
+                                    ):
+    response = client.post(url='/simple_predict', params={'ad_id': ad_id})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+@pytest.mark.parametrize('ad_id', [1, 2, 3])
+def test_true_simple_predict(ad_id: int,
+                             client: TestClient,
+                             set_fake_get_ad: None,
+                             set_only_true_model: None
+                             ):
+    response = client.post(url='/simple_predict', 
+                           params={'ad_id': ad_id})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['is_violation'] is True
+
+@pytest.mark.parametrize('ad_id', [1, 2, 3])
+def test_false_simple_predict(ad_id: int,
+                             client: TestClient,
+                             set_fake_get_ad: None,
+                             set_only_false_model: None
+                             ):
+    response = client.post(url='/simple_predict', 
+                           params={'ad_id': ad_id})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['is_violation'] is False
+

@@ -8,6 +8,3 @@ class Ad(BaseModel):
     description: StrictStr
     category: StrictInt
     images_qty: StrictInt = Field(ge=0, le=10)
-
-# class BatchAd(BaseModel):
-#     ads: list[Ad] = Field(..., min_length=1, max_length=100) #TODO Подумать, нужно ли min, max

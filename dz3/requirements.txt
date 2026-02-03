@@ -5,3 +5,7 @@ httpx
 numpy
 scikit-learn
 mlflow
+
+asyncpg
+psycopg2-binary
+yandex-pgmigrate

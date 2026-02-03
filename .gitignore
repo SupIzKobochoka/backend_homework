@@ -2,3 +2,5 @@
 **/__*__/
 **/.pytest_cache/
 **/__*
+**/mlflow.db
+**/mlruns/
