@@ -1,4 +1,5 @@
 pytest
+pytest-asyncio
 fastapi
 pydantic
 httpx
@@ -9,3 +10,4 @@ mlflow
 asyncpg
 psycopg2-binary
 yandex-pgmigrate
+aiokafka

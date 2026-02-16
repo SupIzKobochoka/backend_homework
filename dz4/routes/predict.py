@@ -3,11 +3,9 @@ from schemas.ad import Ad
 from schemas.predicted import PredictedAd
 from model import get_pred
 from typing import Callable
-from client.postgres import get_pg_connection
-import logging
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+from db_scripts.db_access import DBProvider, get_db_provider
+from client.kafka import KafkaProducer
+from utils import logger
 
 router = APIRouter()
 
@@ -17,24 +15,13 @@ def get_model(request: Request) -> Callable:
     except AttributeError:
         logger.exception('model doesnt found')
         raise HTTPException(503, detail='Service Unavailable')
-
-async def get_ad(ad_id: int
-                 ) -> dict:
-    query = '''
-        --sql 
-        SELECT *
-        FROM public.ads
-        INNER JOIN public.sellers
-            ON public.sellers.seller_id = public.ads.seller_id
-        WHERE public.ads.ad_id = $1
-        ;
-        '''
-    async with get_pg_connection() as connection:  
-        ad = await connection.fetchrow(query, ad_id)
-    return ad
     
-def get_ad_provider():
-    return get_ad
+def get_producer(request: Request) -> KafkaProducer:
+    try:
+        return request.app.state.producer
+    except AttributeError:
+        logger.exception('producer doesnt found')
+        raise HTTPException(503, detail='Service Unavailable')
 
 @router.post('/predict_one')
 def predict_one(ad: Ad, 
@@ -45,24 +32,20 @@ def predict_one(ad: Ad,
         predicted = get_pred(model=model, ad=ad.model_dump())
         logger.info(f'predicted: {predicted}')
         return PredictedAd(**predicted)
-    except Exception as eget: 
+    except Exception as e:
         logger.exception(f'error while prediction, {e}')
         raise HTTPException(500, detail=f'Internal Server Error while prediction')
 
 @router.post('/simple_predict')
-async def simple_predict(ad_id: int, 
+async def simple_predict(item_id: int, 
                          model = Depends(get_model),
-                         get_ad = Depends(get_ad_provider)
+                         db_provider: DBProvider = Depends(get_db_provider)
                          ) -> PredictedAd:
-    try:
-        ad = await get_ad(ad_id)
-    except Exception as e:
-        logger.exception(f'error while data base query, {e}')
-        raise HTTPException(500, detail=f'Internal Server Error while data base query')
+    
+    ad = await db_provider.get_ad(item_id)
     if ad is None:
-        logger.exception(f'No such ad_id: {ad_id}')
-        raise HTTPException(404, detail=f'No such ad_id: {ad_id}')
-    ad = dict(ad)
+        logger.exception(f'No such item_id: {item_id}')
+        raise HTTPException(404, detail=f'No such item_id: {item_id}')
     logger.info(f'data input: {ad}')
     try:
         predicted = get_pred(model=model, ad=ad)
@@ -71,3 +54,16 @@ async def simple_predict(ad_id: int,
     except Exception as e: 
         logger.exception(f'error while prediction, {e}')
         raise HTTPException(500, detail=f'Internal Server Error while prediction')
+    
+@router.post('/async_predict')
+async def async_predict(item_id: int,
+                        kafka_producer: KafkaProducer = Depends(get_producer),
+                        db_provider: DBProvider = Depends(get_db_provider),
+                        ) -> int:
+    item_id_exist, task_id = await db_provider.check_and_add_moderation(item_id)
+    if item_id_exist is False:
+        logger.exception(f'No such item_id: {item_id}')
+        raise HTTPException(404, detail=f'No such item_id: {item_id}')
+    await kafka_producer.send_moderation_request(item_id)
+
+    return task_id
