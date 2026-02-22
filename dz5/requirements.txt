@@ -1,0 +1,13 @@
+pytest
+pytest-asyncio
+fastapi
+pydantic
+httpx
+numpy
+scikit-learn
+mlflow
+
+asyncpg
+psycopg2-binary
+yandex-pgmigrate
+aiokafka
