@@ -1,19 +1,3 @@
-CHECK_ADS_QUERY = '''
-    --sql
-    SELECT item_id
-    FROM public.ads
-    WHERE item_id = $1
-    ;
-    '''
-
-CHECK_MODERATION_QUERY = '''
-    --sql
-    SELECT task_id
-    FROM public.moderation_results
-    WHERE item_id = $1
-    ;
-    '''
-
 ADD_MODERATION_QUERY  = '''
 --sql
 INSERT INTO public.moderation_results (item_id, status) 
@@ -33,14 +17,6 @@ WHERE public.ads.item_id = $1
 ;
 '''
 
-GET_MODERATION_AD_QUERY = '''
---sql
-SELECT *
-FROM public.moderation_results
-WHERE task_id = $1
-;
-'''
-
 UPDATE_MODERATION_AD_QUERY = '''
 --sql
 UPDATE public.moderation_results
@@ -55,10 +31,16 @@ RETURNING task_id;
 ;
 '''
 
-GET_MODERATION_STATUS_QUERY = '''
---sql 
-SELECT status 
+GET_MODERATION_TASK_FROM_ITEM_ID_QUERY = '''
+--sql
+SELECT * 
 FROM public.moderation_results
-WHERE item_id = $1 
-;
+WHERE item_id = $1
+'''
+
+GET_MODERATION_TASK_FROM_TASK_ID_QUERY = '''
+--sql
+SELECT * 
+FROM public.moderation_results
+WHERE task_id = $1
 '''

@@ -37,3 +37,15 @@ services:
     volumes:
       - ./client:/client
     entrypoint: ["bash", "/client/create_topics.sh"]
+
+redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /path/to/local/dаta:/root/redis
+      - /path/to/local/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=1
