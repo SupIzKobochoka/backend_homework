@@ -6,7 +6,6 @@ from .queries import (GET_AD_QUERY,
                       GET_MODERATION_TASK_FROM_TASK_ID_QUERY
                       )
 from utils import get_timestamp
-from .services import async_log_db_calls
 from typing import Literal, Any
 
 async def query_handler(query: str, 
@@ -20,7 +19,6 @@ async def query_handler(query: str,
     return result
 
 class AdStorage:
-    @async_log_db_calls
     async def get_ad(self,
                      item_id: int
                  ) -> dict | None:
