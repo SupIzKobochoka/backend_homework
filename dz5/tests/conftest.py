@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from typing import Callable, Generator
 from routes.predict import get_model, get_producer
 import numpy as np
+from db_scripts.redis import PredictRedisStorage, SyncPredictRedisStorage
 
 from db_scripts.storages import AdRepository, ModerationRepository
 
@@ -122,3 +123,73 @@ def set_fake_kafka_provider() -> Generator[FakeKafkaProducer, None, None]:
     app.dependency_overrides[get_producer] = lambda: fake_kafka
     yield fake_kafka
     app.dependency_overrides.clear()
+
+
+class FakeRedis:
+    def __init__(self, *args, **kwargs):
+        self.deleted_ad = None
+
+    async def get(self, *args, **kwargs):
+        return None
+
+    async def set(self, *args, **kwargs):
+        return None
+
+    async def delete(self, ad: dict):
+        self.deleted_ad = ad
+        return None
+    
+@pytest.fixture(scope="function", autouse=True)
+def set_fake_redis_storage():
+    fake_redis = FakeRedis()
+    app.dependency_overrides[PredictRedisStorage] = lambda: fake_redis
+    yield fake_redis
+    app.dependency_overrides.pop(PredictRedisStorage, None)
+
+class SyncFakeRedis:
+    def __init__(self, *args, **kwargs):
+        ...
+
+    def get(self, *args, **kwargs):
+        return None
+
+    def set(self, *args, **kwargs):
+        return None
+    
+@pytest.fixture(scope="function", autouse=True)
+def set_sync_fake_redis_storage():
+    app.dependency_overrides[SyncPredictRedisStorage] = lambda: SyncFakeRedis()
+    yield
+    app.dependency_overrides.pop(SyncPredictRedisStorage, None)
+
+class FakeAdRepositoryForClose:
+    def __init__(self, 
+                 *args, 
+                 fake_ad_return=BASE_AD, 
+                 **kwargs
+                 ):
+        self.fake_ad_return = (fake_ad_return.copy() 
+                               if isinstance(fake_ad_return, dict)
+                               else fake_ad_return
+                               )
+        self.deleted_item_id = None
+
+    async def get_ad(self, *args, **kwargs):
+        return self.fake_ad_return
+
+    async def delete_ad(self, item_id: int) -> None:
+        self.deleted_item_id = item_id
+
+@pytest.fixture(scope="function")
+def set_fake_ad_repo_for_close():
+    fake_repo = FakeAdRepositoryForClose()
+    app.dependency_overrides[AdRepository] = lambda: fake_repo
+    yield fake_repo
+    app.dependency_overrides.pop(AdRepository, None)
+    
+@pytest.fixture(scope="function")
+def set_fake_ad_repo_for_close_none():
+    fake_repo = FakeAdRepositoryForClose(fake_ad_return=None)
+    app.dependency_overrides[AdRepository] = lambda: fake_repo
+    yield fake_repo
+    app.dependency_overrides.pop(AdRepository, None)

@@ -27,7 +27,7 @@ SET status = $2,
     processed_at = $7
 WHERE item_id = $1
 ON CONFLICT (item_id) DO NOTHING
-RETURNING task_id;
+RETURNING task_id
 ;
 '''
 
@@ -36,6 +36,7 @@ GET_MODERATION_TASK_FROM_ITEM_ID_QUERY = '''
 SELECT * 
 FROM public.moderation_results
 WHERE item_id = $1
+;
 '''
 
 GET_MODERATION_TASK_FROM_TASK_ID_QUERY = '''
@@ -43,4 +44,26 @@ GET_MODERATION_TASK_FROM_TASK_ID_QUERY = '''
 SELECT * 
 FROM public.moderation_results
 WHERE task_id = $1
+;
 '''
+
+DELETE_AD_QUERY = '''
+--sql
+DELETE FROM public.ads
+WHERE item_id = $1
+'''
+
+ADD_AD_QUERY = """
+--sql
+INSERT INTO public.ads (
+    seller_id,
+    item_id,
+    name,
+    description,
+    category,
+    images_qty
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING ad_id
+;
+"""

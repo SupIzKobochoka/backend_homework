@@ -6,6 +6,7 @@ from utils import logger
 from model import get_pred, load_or_train_model
 from db_scripts.storages import AdRepository, ModerationRepository
 from client.kafka import get_kafka_producer
+from db_scripts.redis import PredictRedisStorage
 
 
 async def main():
@@ -21,6 +22,7 @@ async def main():
     )
 
     dlq = get_kafka_producer()
+    predict_redis_storage = PredictRedisStorage() 
 
     await consumer.start()
     await dlq.start()
@@ -47,7 +49,12 @@ async def main():
                 if ad is None:
                     raise RuntimeError(f"item_id={item_id} not found in ads table")
 
-                response = get_pred(model=model, ad=ad)  # {'is_violation': ..., 'probability': ...}
+                redis_response = await predict_redis_storage.get(ad)
+                if redis_response:
+                    response = redis_response
+                else:
+                    response = get_pred(model=model, ad=ad)  # {'is_violation': ..., 'probability': ...}
+                    await predict_redis_storage.set(ad, response)
 
                 await moderation_repo.check_and_update_task(
                     item_id=item_id,

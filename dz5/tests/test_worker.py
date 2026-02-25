@@ -45,11 +45,16 @@ async def test_worker(status, raise_error):
             raise Exception("test error")
         return fake_pred
 
+    fake_redis = AsyncMock()
+    fake_redis.get = AsyncMock(return_value=None)
+    fake_redis.set = AsyncMock(return_value=None)
+
     with patch("workers.moderation_worker.AIOKafkaConsumer", return_value=fake_consumer), \
          patch("workers.moderation_worker.get_kafka_producer", return_value=fake_producer), \
          patch("workers.moderation_worker.AdRepository", return_value=fake_ad_repo), \
          patch("workers.moderation_worker.ModerationRepository", return_value=fake_moderation_repo), \
          patch("workers.moderation_worker.load_or_train_model", return_value=fake_model), \
+         patch("workers.moderation_worker.PredictRedisStorage", return_value=fake_redis), \
          patch("workers.moderation_worker.get_pred", side_effect=fake_get_pred):
         await main()
 

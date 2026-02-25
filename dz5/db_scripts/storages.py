@@ -3,7 +3,9 @@ from .queries import (GET_AD_QUERY,
                       ADD_MODERATION_QUERY,
                       UPDATE_MODERATION_AD_QUERY,
                       GET_MODERATION_TASK_FROM_ITEM_ID_QUERY,
-                      GET_MODERATION_TASK_FROM_TASK_ID_QUERY
+                      GET_MODERATION_TASK_FROM_TASK_ID_QUERY,
+                      DELETE_AD_QUERY,
+                      ADD_AD_QUERY
                       )
 from utils import get_timestamp
 from typing import Literal, Any
@@ -26,6 +28,29 @@ class AdStorage:
         if ad:
             return dict(ad)
         return None
+    
+    async def add_ad(self,
+                     seller_id: int,
+                     item_id: int,
+                     name: str,
+                     description: str,
+                     category: int,
+                     images_qty: int,
+                     ) -> int:
+        ad_id = await query_handler(ADD_AD_QUERY,
+                                    seller_id,
+                                    item_id,
+                                    name,
+                                    description,
+                                    category,
+                                    images_qty
+                                    )
+        return ad_id
+
+    async def delete_ad(self, 
+                        item_id: int
+                        ) -> None:
+        await query_handler(DELETE_AD_QUERY, item_id)
         
 class ModerationStorage:
     async def add_item(self, 
@@ -78,6 +103,27 @@ class AdRepository:
                      item_id: int
                      ) -> dict | None:
         return await self.ad_storage.get_ad(item_id)
+    
+    async def add_ad(self,
+                     seller_id: int,
+                     item_id: int,
+                     name: str,
+                     description: str,
+                     category: int,
+                     images_qty: int,
+                     ) -> int:
+        return await self.ad_storage.add_ad(seller_id,
+                                            item_id,
+                                            name,
+                                            description,
+                                            category,
+                                            images_qty
+                                            )
+
+    async def delete_ad(self,
+                        item_id: int
+                        ) -> None:
+        await self.ad_storage.delete_ad(item_id)
     
 
 class ModerationRepository:

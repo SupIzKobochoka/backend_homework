@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from routes.predict import router as pr_router
 from routes.moderation_result import router as mo_router
+from routes.close import router as cl_router
 from contextlib import asynccontextmanager
 from model import load_or_train_model
 from client.kafka import get_kafka_producer
@@ -24,6 +25,7 @@ def create_app():
 
     app.include_router(pr_router)
     app.include_router(mo_router)
+    app.include_router(cl_router)
     return app
 
 app = create_app()

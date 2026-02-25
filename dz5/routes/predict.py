@@ -7,6 +7,7 @@ from model import get_pred
 from db_scripts.storages import AdRepository, ModerationRepository
 from client.kafka import KafkaProducer
 from utils import logger
+from db_scripts.redis import PredictRedisStorage, SyncPredictRedisStorage
 
 router = APIRouter()
 
@@ -28,11 +29,16 @@ def get_producer(request: Request) -> KafkaProducer:
 
 @router.post("/predict_one")
 def predict_one(ad: Ad,
-                model=Depends(get_model),
+                model=Depends(get_model), 
+                sync_predict_redis_storage=Depends(SyncPredictRedisStorage),
                 ) -> PredictedAd:
     logger.info(f"data input: {ad.model_dump()}")
     try:
+        redis_response = sync_predict_redis_storage.get(ad.model_dump())
+        if redis_response:
+            return PredictedAd(**redis_response)
         predicted = get_pred(model=model, ad=ad.model_dump())
+        sync_predict_redis_storage.set(ad, predicted)
         logger.info(f"predicted: {predicted}")
         return PredictedAd(**predicted)
     except Exception as e:
@@ -44,15 +50,19 @@ def predict_one(ad: Ad,
 async def simple_predict(item_id: int,
                          model=Depends(get_model),
                          ad_repo: AdRepository = Depends(),
+                         predict_redis_storage: PredictRedisStorage = Depends(),
                          ) -> PredictedAd:
     ad = await ad_repo.get_ad(item_id)
     if ad is None:
         logger.exception(f"No such item_id: {item_id}")
         raise HTTPException(404, detail=f"No such item_id: {item_id}")
-
     logger.info(f"data input: {ad}")
     try:
+        redis_response = await predict_redis_storage.get(ad)
+        if redis_response:
+            return PredictedAd(**redis_response)
         predicted = get_pred(model=model, ad=ad)
+        await predict_redis_storage.set(ad, predicted)
         logger.info(f"predicted: {predicted}")
         return PredictedAd(**predicted)
     except Exception as e:
