@@ -77,9 +77,13 @@ class FakeAdRepository:
 class FakeModerationRepository:
     def __init__(self, *args, task_id=69, **kwargs):
         self.task_id = task_id
+        self.deleted_item_id = None
 
     async def check_and_add_item(self, *args, **kwargs):
         return self.task_id
+
+    async def delete_by_item_id(self, item_id: int):
+        self.deleted_item_id = item_id
 
 
 @pytest.fixture(scope="function")

@@ -27,6 +27,12 @@ class KafkaProducer:
         data_json = json.dumps(data).encode("utf-8")
         await self._producer.send_and_wait('moderation', data_json)
         return data
+
+    async def send_retry_request(self, item_id: int, retry_count: int) -> None:
+        assert self._producer is not None
+        data = {"item_id": item_id, "retry_count": retry_count, "timestamp": get_timestamp()}
+        data_json = json.dumps(data).encode("utf-8")
+        await self._producer.send_and_wait("moderation", data_json)
     
     async def send_dlq_request(self, 
                                data: dict

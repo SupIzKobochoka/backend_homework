@@ -16,6 +16,17 @@ def test_is_violation_true(client: TestClient,
     assert response.json()["is_violation"] is True
 
 
+def test_predict_endpoint_alias(client: TestClient,
+                                get_ad: Callable[..., dict[str, str | bool | int]],
+                                set_only_true_model: None,
+                                set_sync_fake_redis_storage
+                                ):
+    ad = get_ad()
+    response = client.post("/predict", json=ad)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["is_violation"] is True
+
+
 def test_is_violation_false(client: TestClient,
                             get_ad: Callable[..., dict[str, str | bool | int]],
                             set_only_false_model: None,

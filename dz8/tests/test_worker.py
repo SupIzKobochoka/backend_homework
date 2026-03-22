@@ -28,6 +28,7 @@ async def test_worker(status, raise_error):
     fake_producer = AsyncMock()
     fake_producer.start = AsyncMock()
     fake_producer.send_dlq_request = AsyncMock()
+    fake_producer.send_retry_request = AsyncMock()
     fake_producer.stop = AsyncMock()
 
     fake_ad_repo = AsyncMock()
@@ -64,7 +65,7 @@ async def test_worker(status, raise_error):
             status="failed",
             error_message="test error",
         )
-        fake_producer.send_dlq_request.assert_called_once()
+        fake_producer.send_retry_request.assert_called_once_with(item_id=123, retry_count=1)
         fake_consumer.commit.assert_called()
     else:
         fake_moderation_repo.check_and_update_task.assert_called_with(

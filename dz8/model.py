@@ -3,6 +3,8 @@ from sklearn.linear_model import LogisticRegression
 import mlflow
 from mlflow.sklearn import log_model
 from mlflow.exceptions import MlflowException
+import os
+import pickle
 
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
 mlflow.set_experiment("moderation-model")
@@ -29,8 +31,18 @@ def load_model(model_name: str = 'base_model', stage: str = None):
     return mlflow.sklearn.load_model(model_uri)
 
 def load_or_train_model(model_name: str = 'base_model', stage: str = None):
+    model_source = os.getenv("MODEL_SOURCE", "mlflow")
+    model_path = os.getenv("MODEL_FILE_PATH", "model.pkl")
+    if model_source == "local":
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as f:
+                return pickle.load(f)
+        model = train_model()
+        with open(model_path, "wb") as f:
+            pickle.dump(model, f)
+        return model
     try:
-        model =  mlflow.sklearn.load_model(f"models:/{model_name}/{stage}")
+        model = mlflow.sklearn.load_model(f"models:/{model_name}/{stage}")
     except MlflowException:
         model = train_model()
         save_model(model, model_name=model_name)
@@ -49,4 +61,3 @@ def get_pred(model: LogisticRegression, ad: dict) -> dict:
     proba = model.predict_proba(data)[0, 1].item()
     target = bool(model.predict(data).item())
     return {'is_violation': target, 'probability': proba}
-

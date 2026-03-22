@@ -9,6 +9,7 @@ from conftest import BASE_AD
 def test_close_ok(item_id: int,
                   client: TestClient,
                   set_fake_ad_repo_for_close,
+                  set_fake_moderation_repo,
                   set_fake_redis_storage):
     response = client.post("/close", params={"item_id": item_id})
 
@@ -23,6 +24,7 @@ def test_close_ok(item_id: int,
 def test_close_not_found(item_id: int,
                          client: TestClient,
                          set_fake_ad_repo_for_close_none,
+                         set_fake_moderation_repo,
                          set_fake_redis_storage):
     response = client.post("/close", params={"item_id": item_id})
     assert response.status_code == status.HTTP_404_NOT_FOUND

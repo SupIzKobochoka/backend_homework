@@ -1,4 +1,9 @@
-pip install -r requirements.txt  # ставит зависимости
-bash infra/create_topics.sh   # создаёт топики
-docker compose up -d          # поднимает инфраструктуру
-uvicorn main:app --reload --port 8003  # запускает API
+pip install -r requirements.txt
+docker compose up -d
+bash client/create_topics.sh
+uvicorn main:app --reload --port 8003
+
+python workers/moderation_worker.py
+
+pytest -m "not integration"
+pytest -m integration

@@ -52,6 +52,12 @@ DELETE FROM public.ads
 WHERE item_id = $1
 '''
 
+DELETE_MODERATION_BY_ITEM_ID_QUERY = '''
+--sql
+DELETE FROM public.moderation_results
+WHERE item_id = $1
+'''
+
 ADD_AD_QUERY = """
 --sql
 INSERT INTO public.ads (

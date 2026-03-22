@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from aiokafka import AIOKafkaConsumer
 
 from utils import logger
@@ -29,6 +30,7 @@ async def main():
     logger.info("kafka consumer started (moderation)")
 
     model = load_or_train_model()
+    max_retries = int(os.getenv("KAFKA_MAX_RETRIES", "3"))
 
     try:
         async for msg in consumer:
@@ -36,6 +38,7 @@ async def main():
             try:
                 payload = json.loads(msg.value.decode("utf-8"))
                 item_id = payload["item_id"]
+                retry_count = int(payload.get("retry_count", 0))
 
                 status = await moderation_repo.get_moderation_status(item_id)
                 if status is None:
@@ -53,7 +56,7 @@ async def main():
                 if redis_response:
                     response = redis_response
                 else:
-                    response = get_pred(model=model, ad=ad)  # {'is_violation': ..., 'probability': ...}
+                    response = get_pred(model=model, ad=ad)
                     await predict_redis_storage.set(ad, response)
 
                 await moderation_repo.check_and_update_task(
@@ -68,21 +71,30 @@ async def main():
             except Exception as e:
                 logger.error(f"error in moderation consumer: {e}")
 
-                # пытаемся проставить failed, если item_id удалось достать
                 if item_id is not None:
                     await moderation_repo.check_and_update_task(
                         item_id=item_id,
                         status="failed",
                         error_message=str(e),
                     )
-
-                dlq_payload = {
-                    "error": str(e),
-                    "topic": "moderation",
-                    "group_id": "moderation-group",
-                    "original": msg.value.decode("utf-8", errors="replace"),
-                }
-                await dlq.send_dlq_request(dlq_payload)
+                    if retry_count < max_retries:
+                        await dlq.send_retry_request(item_id=item_id, retry_count=retry_count + 1)
+                    else:
+                        dlq_payload = {
+                            "error": str(e),
+                            "topic": "moderation",
+                            "group_id": "moderation-group",
+                            "original": msg.value.decode("utf-8", errors="replace"),
+                        }
+                        await dlq.send_dlq_request(dlq_payload)
+                else:
+                    dlq_payload = {
+                        "error": str(e),
+                        "topic": "moderation",
+                        "group_id": "moderation-group",
+                        "original": msg.value.decode("utf-8", errors="replace"),
+                    }
+                    await dlq.send_dlq_request(dlq_payload)
 
                 await consumer.commit()
 

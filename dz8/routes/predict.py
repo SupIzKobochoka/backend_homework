@@ -39,6 +39,7 @@ def get_producer(request: Request) -> KafkaProducer:
         raise HTTPException(503, detail="Service Unavailable")
 
 
+@router.post("/predict")
 @router.post("/predict_one")
 def predict_one(
     ad: Ad,

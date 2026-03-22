@@ -12,6 +12,7 @@ from .queries import (
     DELETE_ACCOUNT_QUERY,
     BLOCK_ACCOUNT_QUERY,
     GET_ACCOUNT_BY_LOGIN_PASSWORD_QUERY,
+    DELETE_MODERATION_BY_ITEM_ID_QUERY,
 )
 from utils import get_timestamp
 from typing import Literal, Any
@@ -108,6 +109,9 @@ class ModerationStorage:
             get_timestamp(),
         )
 
+    async def delete_by_item_id(self, item_id: int) -> None:
+        await query_handler(DELETE_MODERATION_BY_ITEM_ID_QUERY, item_id)
+
 
 class AccountStorage:
     async def create_account(self, login: str, password: str) -> dict | None:
@@ -197,6 +201,9 @@ class ModerationRepository:
         if task:
             return task["status"]
         return None
+
+    async def delete_by_item_id(self, item_id: int) -> None:
+        await self.moderation_storage.delete_by_item_id(item_id)
 
 
 class AccountRepository:
