@@ -1,0 +1,16 @@
+pytest
+pytest-asyncio
+fastapi
+pydantic
+httpx
+numpy
+scikit-learn
+mlflow
+asyncpg
+yandex-pgmigrate # Уже вместе с psycopg2
+aiokafka
+prometheus-client
+uvicorn
+redis
+prometheus_fastapi_instrumentator
+PyJWT
