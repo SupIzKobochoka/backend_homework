@@ -1,12 +1,14 @@
 import pytest
-from main import create_app, app
-from fastapi.testclient import TestClient
-from typing import Callable, Generator
-from routes.predict import get_model, get_producer
 import numpy as np
-from db_scripts.redis import PredictRedisStorage, SyncPredictRedisStorage
+from typing import Callable, Generator
+from fastapi.testclient import TestClient
 
+from main import create_app
+from routes.predict import get_model, get_producer
+from db_scripts.redis import PredictRedisStorage, SyncPredictRedisStorage
 from db_scripts.storages import AdRepository, ModerationRepository
+from db_scripts.dependencies import get_current_account
+from schemas.account import Account
 
 BASE_AD = {
     "seller_id": 1,
@@ -19,10 +21,9 @@ BASE_AD = {
 }
 
 
-@pytest.fixture(scope="session")
-def client() -> Generator[TestClient, None, None]:
-    with TestClient(app) as client:  # Чтобы lifespan работал
-        yield client
+@pytest.fixture(scope="function")
+def client() -> TestClient:
+    return TestClient(create_app())
 
 
 @pytest.fixture(scope="function")
@@ -52,17 +53,17 @@ class FakeModel:
 
 
 @pytest.fixture(scope="function")
-def set_only_true_model():
-    app.dependency_overrides[get_model] = lambda: FakeModel(value=1)
+def set_only_true_model(client: TestClient):
+    client.app.dependency_overrides[get_model] = lambda: FakeModel(value=1)
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
-def set_only_false_model():
-    app.dependency_overrides[get_model] = lambda: FakeModel(value=0)
+def set_only_false_model(client: TestClient):
+    client.app.dependency_overrides[get_model] = lambda: FakeModel(value=0)
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 class FakeAdRepository:
@@ -82,47 +83,44 @@ class FakeModerationRepository:
 
 
 @pytest.fixture(scope="function")
-def set_fake_ad_repo():
-    app.dependency_overrides[AdRepository] = lambda: FakeAdRepository()
+def set_fake_ad_repo(client: TestClient):
+    client.app.dependency_overrides[AdRepository] = lambda: FakeAdRepository()
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
-def set_fake_ad_repo_none():
-    app.dependency_overrides[AdRepository] = lambda: FakeAdRepository(fake_ad_return=None)
+def set_fake_ad_repo_none(client: TestClient):
+    client.app.dependency_overrides[AdRepository] = lambda: FakeAdRepository(fake_ad_return=None)
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
-def set_fake_moderation_repo():
-    app.dependency_overrides[ModerationRepository] = lambda: FakeModerationRepository(task_id=69)
+def set_fake_moderation_repo(client: TestClient):
+    client.app.dependency_overrides[ModerationRepository] = lambda: FakeModerationRepository(task_id=69)
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
-def set_fake_moderation_repo_none():
-    app.dependency_overrides[ModerationRepository] = lambda: FakeModerationRepository(task_id=None)
+def set_fake_moderation_repo_none(client: TestClient):
+    client.app.dependency_overrides[ModerationRepository] = lambda: FakeModerationRepository(task_id=None)
     yield
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 class FakeKafkaProducer:
-    def __init__(self, *args, **kwargs):
-        ...
-
     async def send_moderation_request(self, item_id: int):
         self.send_moderation_request_item_id = item_id
 
 
 @pytest.fixture(scope="function")
-def set_fake_kafka_provider() -> Generator[FakeKafkaProducer, None, None]:
+def set_fake_kafka_provider(client: TestClient) -> Generator[FakeKafkaProducer, None, None]:
     fake_kafka = FakeKafkaProducer()
-    app.dependency_overrides[get_producer] = lambda: fake_kafka
+    client.app.dependency_overrides[get_producer] = lambda: fake_kafka
     yield fake_kafka
-    app.dependency_overrides.clear()
+    client.app.dependency_overrides.clear()
 
 
 class FakeRedis:
@@ -138,40 +136,34 @@ class FakeRedis:
     async def delete(self, ad: dict):
         self.deleted_ad = ad
         return None
-    
+
+
 @pytest.fixture(scope="function", autouse=True)
-def set_fake_redis_storage():
+def set_fake_redis_storage(client: TestClient):
     fake_redis = FakeRedis()
-    app.dependency_overrides[PredictRedisStorage] = lambda: fake_redis
+    client.app.dependency_overrides[PredictRedisStorage] = lambda: fake_redis
     yield fake_redis
-    app.dependency_overrides.pop(PredictRedisStorage, None)
+    client.app.dependency_overrides.pop(PredictRedisStorage, None)
+
 
 class SyncFakeRedis:
-    def __init__(self, *args, **kwargs):
-        ...
-
     def get(self, *args, **kwargs):
         return None
 
     def set(self, *args, **kwargs):
         return None
-    
+
+
 @pytest.fixture(scope="function", autouse=True)
-def set_sync_fake_redis_storage():
-    app.dependency_overrides[SyncPredictRedisStorage] = lambda: SyncFakeRedis()
+def set_sync_fake_redis_storage(client: TestClient):
+    client.app.dependency_overrides[SyncPredictRedisStorage] = lambda: SyncFakeRedis()
     yield
-    app.dependency_overrides.pop(SyncPredictRedisStorage, None)
+    client.app.dependency_overrides.pop(SyncPredictRedisStorage, None)
+
 
 class FakeAdRepositoryForClose:
-    def __init__(self, 
-                 *args, 
-                 fake_ad_return=BASE_AD, 
-                 **kwargs
-                 ):
-        self.fake_ad_return = (fake_ad_return.copy() 
-                               if isinstance(fake_ad_return, dict)
-                               else fake_ad_return
-                               )
+    def __init__(self, *args, fake_ad_return=BASE_AD, **kwargs):
+        self.fake_ad_return = fake_ad_return.copy() if isinstance(fake_ad_return, dict) else fake_ad_return
         self.deleted_item_id = None
 
     async def get_ad(self, *args, **kwargs):
@@ -180,16 +172,44 @@ class FakeAdRepositoryForClose:
     async def delete_ad(self, item_id: int) -> None:
         self.deleted_item_id = item_id
 
+
 @pytest.fixture(scope="function")
-def set_fake_ad_repo_for_close():
+def set_fake_ad_repo_for_close(client: TestClient):
     fake_repo = FakeAdRepositoryForClose()
-    app.dependency_overrides[AdRepository] = lambda: fake_repo
+    client.app.dependency_overrides[AdRepository] = lambda: fake_repo
     yield fake_repo
-    app.dependency_overrides.pop(AdRepository, None)
-    
+    client.app.dependency_overrides.pop(AdRepository, None)
+
+
 @pytest.fixture(scope="function")
-def set_fake_ad_repo_for_close_none():
+def set_fake_ad_repo_for_close_none(client: TestClient):
     fake_repo = FakeAdRepositoryForClose(fake_ad_return=None)
-    app.dependency_overrides[AdRepository] = lambda: fake_repo
+    client.app.dependency_overrides[AdRepository] = lambda: fake_repo
     yield fake_repo
-    app.dependency_overrides.pop(AdRepository, None)
+    client.app.dependency_overrides.pop(AdRepository, None)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def set_fake_auth_account(client: TestClient):
+    client.app.dependency_overrides[get_current_account] = lambda: Account(
+        id=1,
+        login="test",
+        password="x",
+        is_blocked=False,
+    )
+    yield
+    client.app.dependency_overrides.pop(get_current_account, None)
+
+
+class DefaultProducer:
+    async def send_moderation_request(self, item_id: int):
+        return None
+
+
+@pytest.fixture(scope="function", autouse=True)
+def set_default_model_and_producer(client: TestClient):
+    client.app.dependency_overrides[get_model] = lambda: FakeModel(value=0)
+    client.app.dependency_overrides[get_producer] = lambda: DefaultProducer()
+    yield
+    client.app.dependency_overrides.pop(get_model, None)
+    client.app.dependency_overrides.pop(get_producer, None)

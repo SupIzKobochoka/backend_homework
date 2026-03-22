@@ -1,1 +1,1 @@
-conn: "dbname=lesson user=postgres host=localhost port=5432 password=postgres"
+conn: "dbname=hw user=postgres host=localhost port=5435 password=postgres"

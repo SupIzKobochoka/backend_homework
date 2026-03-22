@@ -13,3 +13,4 @@ prometheus-client
 uvicorn
 redis
 prometheus_fastapi_instrumentator
+PyJWT

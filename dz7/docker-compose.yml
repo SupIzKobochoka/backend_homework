@@ -68,3 +68,19 @@ services:
     depends_on:
       - prometheus
 
+
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: hw
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
+

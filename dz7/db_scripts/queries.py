@@ -66,3 +66,42 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING ad_id
 ;
 """
+
+CREATE_ACCOUNT_QUERY = '''
+--sql
+INSERT INTO public.account (login, password)
+VALUES ($1, $2)
+RETURNING id
+;
+'''
+
+GET_ACCOUNT_BY_ID_QUERY = '''
+--sql
+SELECT *
+FROM public.account
+WHERE id = $1
+;
+'''
+
+DELETE_ACCOUNT_QUERY = '''
+--sql
+DELETE FROM public.account
+WHERE id = $1
+;
+'''
+
+BLOCK_ACCOUNT_QUERY = '''
+--sql
+UPDATE public.account
+SET is_blocked = TRUE
+WHERE id = $1
+;
+'''
+
+GET_ACCOUNT_BY_LOGIN_PASSWORD_QUERY = '''
+--sql
+SELECT *
+FROM public.account
+WHERE login = $1 AND password = $2
+;
+'''

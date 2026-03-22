@@ -7,11 +7,11 @@ from db_scripts.storages import AdRepository
 
 async def _pg_available() -> bool:
     try:
-        conn = await asyncpg.connect(database="lesson",
+        conn = await asyncpg.connect(database="hw",
                                      user="postgres",
                                      password="postgres",
                                      host="127.0.0.1",
-                                     port=5432)
+                                     port=5435)
         await conn.close()
         return True
     except Exception:
@@ -21,7 +21,7 @@ async def _pg_available() -> bool:
 @pytest.mark.asyncio
 async def test_ad_add_get_delete_in_postgres():
     if not await _pg_available():
-        raise ConnectionError('Postgres donst run')
+        pytest.skip('Postgres does not run')
 
     repo = AdRepository()
 
@@ -53,7 +53,7 @@ async def test_ad_add_get_delete_in_postgres():
 @pytest.mark.asyncio
 async def test_get_missing_ad_returns_none():
     if not await _pg_available():
-        raise ConnectionError('Postgres donst run')
+        pytest.skip('Postgres does not run')
 
     repo = AdRepository()
 

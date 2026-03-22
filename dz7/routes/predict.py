@@ -9,6 +9,8 @@ from db_scripts.storages import AdRepository, ModerationRepository
 from client.kafka import KafkaProducer
 from utils import logger
 from db_scripts.redis import PredictRedisStorage, SyncPredictRedisStorage
+from db_scripts.dependencies import get_current_account
+from schemas.account import Account
 
 from metrics import (
     PREDICTIONS_TOTAL,
@@ -42,6 +44,7 @@ def predict_one(
     ad: Ad,
     model=Depends(get_model),
     sync_predict_redis_storage=Depends(SyncPredictRedisStorage),
+    account: Account = Depends(get_current_account),
 ) -> PredictedAd:
     logger.info(f"data input: {ad.model_dump()}")
     try:
@@ -76,6 +79,7 @@ async def simple_predict(
     model=Depends(get_model),
     ad_repo: AdRepository = Depends(),
     predict_redis_storage: PredictRedisStorage = Depends(),
+    account: Account = Depends(get_current_account),
 ) -> PredictedAd:
     ad = await ad_repo.get_ad(item_id)
     if ad is None:
@@ -113,6 +117,7 @@ async def async_predict(
     item_id: int,
     kafka_producer: KafkaProducer = Depends(get_producer),
     moderation_repo: ModerationRepository = Depends(),
+    account: Account = Depends(get_current_account),
 ) -> int:
     task_id = await moderation_repo.check_and_add_item(item_id)
     if task_id is None:
